@@ -1,0 +1,14 @@
+package: .
+import:
+- package: github.com/go-sql-driver/mysql
+- package: github.com/wfxiang08/cyutils
+  subpackages:
+  - utils
+  - utils/atomic2
+  - utils/rolling_log
+- package: github.com/siddontang/go-mysql
+- package: github.com/outbrain/golib
+- package: github.com/jinzhu/gorm
+  version: v1.0
+- package: github.com/BurntSushi/toml
+  version: v0.3.0

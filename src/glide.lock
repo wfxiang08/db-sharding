@@ -1,0 +1,87 @@
+hash: 7f4367e5fad17aa6fb215c88f7780b25d52c956af79d8f85c3022aa379da2d91
+updated: 2017-11-07T23:19:40.103117774+08:00
+imports:
+- name: github.com/BurntSushi/toml
+  version: b26d9c308763d68093482582cea63d69be07a0f0
+- name: github.com/fatih/color
+  version: 570b54cabe6b8eb0bc2dfce68d964677d63b5260
+- name: github.com/github/gh-ost
+  version: 52f2dd7a203305ff52741fa3cdc060e506bc5a9f
+  subpackages:
+  - go/base
+  - go/mysql
+  - go/sql
+- name: github.com/go-sql-driver/mysql
+  version: 3654d25ec346ee8ce71a68431025458d52a38ac0
+- name: github.com/jinzhu/gorm
+  version: 5174cc5c242a728b435ea2be8a2f7f998e15429b
+  subpackages:
+  - dialects/mysql
+- name: github.com/jinzhu/inflection
+  version: 1c35d901db3da928c72a72d8458480cc9ade058f
+- name: github.com/juju/errors
+  version: 6f54ff6318409d31ff16261533ce2c8381a4fd5d
+- name: github.com/mattn/go-colorable
+  version: 5411d3eea5978e6cdc258b30de592b60df6aba96
+  repo: https://github.com/mattn/go-colorable
+- name: github.com/mattn/go-isatty
+  version: 57fdcb988a5c543893cc61bce354a6e24ab70022
+  repo: https://github.com/mattn/go-isatty
+- name: github.com/ngaut/log
+  version: cec23d3e10b016363780d894a0eb732a12c06e02
+- name: github.com/outbrain/golib
+  version: 2418949ac30d9933e7412ccce41f1aa2ae8d5ae8
+  subpackages:
+  - log
+  - sqlutils
+  - tests
+- name: github.com/satori/go.uuid
+  version: 879c5887cd475cd7864858769793b2ceb0d44feb
+- name: github.com/siddontang/go
+  version: 354e14e6c093c661abb29fd28403b3c19cff5514
+  subpackages:
+  - hack
+  - ioutil2
+  - sync2
+- name: github.com/siddontang/go-mysql
+  version: 5492eeb1c28c0a3f3a8703412a43e90f4cb04660
+  subpackages:
+  - client
+  - mysql
+  - packet
+  - replication
+- name: github.com/wfxiang08/cyutils
+  version: a1e100462898931f081803bb601b083ce9cee60b
+  subpackages:
+  - utils
+  - utils/atomic2
+  - utils/config
+  - utils/errors
+  - utils/rolling_log
+  - utils/trace
+- name: golang.org/x/net
+  version: 6acef71eb69611914f7a30939ea9f6e194c78172
+  subpackages:
+  - context
+- name: golang.org/x/sys
+  version: e24f485414aeafb646f6fca458b0bf869c0880a1
+  repo: https://go.googlesource.com/sys
+  subpackages:
+  - unix
+- name: golang.org/x/text
+  version: e56139fd9c5bc7244c76116c68e500765bb6db6b
+  subpackages:
+  - encoding
+  - encoding/charmap
+  - encoding/internal
+  - encoding/internal/identifier
+  - transform
+- name: gopkg.in/gcfg.v1
+  version: 298b7a6a3838f79debfaee8bd3bfb2b8d779e756
+  subpackages:
+  - scanner
+  - token
+  - types
+- name: gopkg.in/warnings.v0
+  version: 8a331561fe74dadba6edfc59f3be66c22c3b065d
+testImports: []
