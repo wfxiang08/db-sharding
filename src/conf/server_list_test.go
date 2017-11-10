@@ -25,8 +25,4 @@ func TestServerListParse(t *testing.T) {
 	test.S(t).ExpectEquals(db, "shard_sm_29")
 	test.S(t).ExpectEquals(host, "shard03.db.test.com")
 	test.S(t).ExpectEquals(port, 3306)
-
-	for key, value := range config.Slave2Master {
-		fmt.Printf("%s --> %s\n", key, value)
-	}
 }
