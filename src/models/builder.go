@@ -1,7 +1,9 @@
 package models
 
-import "github.com/jinzhu/gorm"
-
+//
+// 1. 实现model(interface{})到SQL转换
+// 2. 实现binlog的args, where到SQL转换
+//
 type ModelBuilder interface {
 	Delete(where []interface{}) *ShardingSQL
 	Update(args []interface{}, where []interface{}) *ShardingSQL
@@ -9,16 +11,4 @@ type ModelBuilder interface {
 	InsertIgnore(model interface{}) *ShardingSQL
 	GetShardingIndex4Model(model interface{}) int
 	GetBatchInsertSegment() string
-}
-
-type DBHelper interface {
-	GetBuilder() ModelBuilder
-	ShardFilter(shardIndex int) bool
-	BatchRead(db *gorm.DB) (*gorm.DB, int)
-	BatchMerge()
-	PrintSummary()
-	ShardSort(shard int)
-	GetShardItem(shard int, index int, clear bool) interface{}
-	ClearShard(shard int)
-	GetShardLen(shard int) int
 }

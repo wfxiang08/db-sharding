@@ -8,7 +8,7 @@ import (
 	"sort"
 )
 
-type dbHelperRecordingLike struct {
+type DbHelperRecordingLike struct {
 	batchModels   []*UserRecordingLike
 	shardedModels [][]*UserRecordingLike
 	builder       models.ModelBuilder
@@ -21,9 +21,9 @@ type dbHelperRecordingLike struct {
 // 2. ShardFilter
 // 3. BatchRead(如果是以id为主键，则也可以直接拷贝)
 //
-func NewDbHelperRecordingLike(originTable string, cacheSize int64) *dbHelperRecordingLike {
+func NewDbHelperRecordingLike(originTable string, cacheSize int64) *DbHelperRecordingLike {
 
-	result := &dbHelperRecordingLike{
+	result := &DbHelperRecordingLike{
 		builder:       NewUserRecordingLikeBuild(logic.TotalShardNum),
 		lastId:        0,
 		originTable:   originTable,
@@ -37,14 +37,14 @@ func NewDbHelperRecordingLike(originTable string, cacheSize int64) *dbHelperReco
 	return result
 }
 
-func (this *dbHelperRecordingLike) ShardFilter(shardIndex int) bool {
+func (this *DbHelperRecordingLike) ShardFilter(shardIndex int) bool {
 	if shardIndex != 5 {
 		return true
 	} else {
 		return false
 	}
 }
-func (this *dbHelperRecordingLike) BatchRead(db *gorm.DB) (*gorm.DB, int) {
+func (this *DbHelperRecordingLike) BatchRead(db *gorm.DB) (*gorm.DB, int) {
 	this.batchModels = nil
 	dbInfo := db.Table(this.originTable).
 		Where("id > ?", this.lastId).
@@ -55,11 +55,11 @@ func (this *dbHelperRecordingLike) BatchRead(db *gorm.DB) (*gorm.DB, int) {
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // 下面的代码可以拷贝
-func (this *dbHelperRecordingLike) GetBuilder() models.ModelBuilder {
+func (this *DbHelperRecordingLike) GetBuilder() models.ModelBuilder {
 	return this.builder
 }
 
-func (this *dbHelperRecordingLike) BatchMerge() {
+func (this *DbHelperRecordingLike) BatchMerge() {
 	for _, model := range this.batchModels {
 		shardIndex := this.builder.GetShardingIndex4Model(model)
 		if this.ShardFilter(shardIndex) {
@@ -73,17 +73,17 @@ func (this *dbHelperRecordingLike) BatchMerge() {
 	this.lastId = lastItem.Id
 }
 
-func (this *dbHelperRecordingLike) ShardSort(shard int) {
+func (this *DbHelperRecordingLike) ShardSort(shard int) {
 	sort.Sort(UserRecordingLikes(this.shardedModels[shard]))
 }
 
-func (this *dbHelperRecordingLike) PrintSummary() {
+func (this *DbHelperRecordingLike) PrintSummary() {
 	for i := 0; i < logic.TotalShardNum; i++ {
 		log.Printf("SHARDXX %d, total size: %d", i, len(this.shardedModels[i]))
 	}
 }
 
-func (this *dbHelperRecordingLike) GetShardItem(shard int, index int, clear bool) interface{} {
+func (this *DbHelperRecordingLike) GetShardItem(shard int, index int, clear bool) interface{} {
 	result := this.shardedModels[shard][index]
 	if clear {
 		this.shardedModels[shard][index] = nil
@@ -91,10 +91,10 @@ func (this *dbHelperRecordingLike) GetShardItem(shard int, index int, clear bool
 	return result
 }
 
-func (this *dbHelperRecordingLike) ClearShard(shard int) {
+func (this *DbHelperRecordingLike) ClearShard(shard int) {
 	this.shardedModels[shard] = nil
 }
 
-func (this *dbHelperRecordingLike) GetShardLen(shard int) int {
+func (this *DbHelperRecordingLike) GetShardLen(shard int) int {
 	return len(this.shardedModels[shard])
 }

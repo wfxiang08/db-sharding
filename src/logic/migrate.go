@@ -22,7 +22,7 @@ const (
 	MaxBinlogDelaySeconds = 5
 )
 
-// 具体实现
+// 支持online将一个table拆分成为多个table
 func ShardingProcess(originTable string, sourceDBAlias string, dbHelper models.DBHelper, selectedShardOnly bool,
 	replicaServerId uint,
 	eventOnly bool, batchOnly bool, dbConfigFile string,

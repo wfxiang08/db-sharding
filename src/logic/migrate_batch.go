@@ -13,6 +13,15 @@ import (
 	"time"
 )
 
+// 实现原理:
+// 1. 按照某个unique-key, 一般是id, 将数据全部读取到内存中，并做好sharding处理
+// 2. 数据读取完毕之后，按照新的key进行排序;
+//    如果没有按照新key排序的需求，则可以在读取的过程中就可以开始批量执行sharding的sql的操作(insert ignore)
+// 3. 排序之后，再有序地将数据插入到各个shard中
+//    MySQL中给数据按照primary-key的顺序插入效率最高，同时也需要考虑网络的round-trip, 因此最有效的方法就是:
+//    1. 一次插入N(4000左右), 通过statement生成固定的SQL, 然后args一口气传递给mysql;
+//    2. 不便于合并的请求，可以通过Transaction减少mysql端的io
+//
 func BatchShard(wg *sync.WaitGroup, sourceDBAlias string, dbConfig *conf.DatabaseConfig,
 	dbHelper models.DBHelper,
 	shardingAppliers []*ShardingApplier, batchOnly bool,
