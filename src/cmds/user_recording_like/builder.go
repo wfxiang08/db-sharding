@@ -5,6 +5,9 @@ import (
 	"models"
 )
 
+// TODO: 可以考虑通过反射来自动完成SQL语句的生成
+// 这里先做Hard coding
+//
 type UserRecordingLikeBuild struct {
 	models.SMHashShard
 }

@@ -32,7 +32,10 @@ var (
 	batchOnly  = flag.Bool("batch-only", false, "batch only") // 不处理binlog, 默认是先处理批处理数据，然后再考虑binlog
 	eventOnly  = flag.Bool("event", false, "notrunk")         // 只处理binlog
 	binlogInfo = flag.String("bin", "", "binlog position")
-	cacheSize  = flag.Int64("batch-cache", 20000000, "batch process init cache size")
+
+	// 根据数据规模来选择
+	// 如果数据量太大，可以考虑临时找一个大内存的云主机，完事之后再退
+	cacheSize = flag.Int64("batch-cache", 20000000, "batch process init cache size")
 )
 
 func main() {
