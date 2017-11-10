@@ -21,13 +21,18 @@ import (
 // insert into ... (select * from xxxx)
 // R在读的这一刻就立马被写入新的表中，在一个事务内执行；不存在R过期，并且错误events的情况
 //
+// 批量拷贝 + Event模式分开处理
+//
 var (
 	dbConfigFile    = flag.String("conf", "", "hosts config file")
 	replicaServerId = flag.Uint("replica-server-id", 99900, "server id used by gh-ost process. Default: 99900")
 	logPrefix       = flag.String("log", "", "log file prefix")
 	dryRun          = flag.Bool("dry", false, "dry run")
-	eventOnly       = flag.Bool("event", false, "notrunk")
-	binlogInfo      = flag.String("bin", "", "binlog position")
+
+	batchOnly  = flag.Bool("batch-only", false, "batch only") // 不处理binlog, 默认是先处理批处理数据，然后再考虑binlog
+	eventOnly  = flag.Bool("event", false, "notrunk")         // 只处理binlog
+	binlogInfo = flag.String("bin", "", "binlog position")
+	cacheSize  = flag.Int64("batch-cache", 20000000, "batch process init cache size")
 )
 
 func main() {
@@ -36,9 +41,13 @@ func main() {
 	originTable := "user_recording_like"
 	sourceDBAlias := "final"
 
-	helper := NewDbHelperRecordingLike(originTable)
+	cacheSizeInt := *cacheSize
+	if *eventOnly {
+		cacheSizeInt = 0
+	}
+	helper := NewDbHelperRecordingLike(originTable, cacheSizeInt)
 	logic.ShardingProcess(originTable, sourceDBAlias, helper, false,
 		*replicaServerId,
-		*eventOnly, *dbConfigFile,
+		*eventOnly, *batchOnly, *dbConfigFile,
 		*logPrefix, *dryRun, *binlogInfo)
 }

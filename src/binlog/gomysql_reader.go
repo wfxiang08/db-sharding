@@ -165,7 +165,10 @@ func (this *GoMySQLReader) StreamEvents(canStopStreaming func() bool, entriesCha
 				defer this.currentCoordinatesMutex.Unlock()
 				this.currentCoordinates.LogFile = string(rotateEvent.NextLogName)
 			}()
-			log.Infof("rotate to next log name: %s", rotateEvent.NextLogName)
+
+			// 如果binlog同步挂了，可以通过该日志定位
+			log.Infof("XXX: rotate to next log pos: %s:4", rotateEvent.NextLogName)
+
 		} else if rowsEvent, ok := ev.Event.(*replication.RowsEvent); ok {
 			// 普通的rowsEvent如何处理呢?
 			if err := this.handleRowsEvent(ev, rowsEvent, entriesChannel); err != nil {

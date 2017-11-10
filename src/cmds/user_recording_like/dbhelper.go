@@ -21,7 +21,7 @@ type dbHelperRecordingLike struct {
 // 2. ShardFilter
 // 3. BatchRead(如果是以id为主键，则也可以直接拷贝)
 //
-func NewDbHelperRecordingLike(originTable string) *dbHelperRecordingLike {
+func NewDbHelperRecordingLike(originTable string, cacheSize int64) *dbHelperRecordingLike {
 
 	result := &dbHelperRecordingLike{
 		builder:       models.NewUserRecordingLikeBuild(logic.TotalShardNum),
@@ -31,7 +31,7 @@ func NewDbHelperRecordingLike(originTable string) *dbHelperRecordingLike {
 	}
 
 	for i := 0; i < logic.TotalShardNum; i++ {
-		result.shardedModels[i] = make([]*models.UserRecordingLike, 0, 20000000)
+		result.shardedModels[i] = make([]*models.UserRecordingLike, 0, cacheSize)
 	}
 
 	return result
