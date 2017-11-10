@@ -1,7 +1,8 @@
-package models
+package main
 
 import (
 	log "github.com/wfxiang08/cyutils/utils/rolling_log"
+	"models"
 )
 
 const (
@@ -38,7 +39,7 @@ func (p UserRecordingLikes) Swap(i, j int) {
 }
 
 type UserRecordingLikeBuild struct {
-	SMHashShard
+	models.SMHashShard
 }
 
 func NewUserRecordingLikeBuild(shardNum int) *UserRecordingLikeBuild {
@@ -55,16 +56,16 @@ func (this *UserRecordingLikeBuild) getShardingIndex(args []interface{}) int {
 	return shard
 }
 
-func (this *UserRecordingLikeBuild) Delete(where []interface{}) *ShardingSQL {
-	return &ShardingSQL{
+func (this *UserRecordingLikeBuild) Delete(where []interface{}) *models.ShardingSQL {
+	return &models.ShardingSQL{
 		ShardingIndex: this.getShardingIndex(where),
 		SQL:           kSQLUserRecordingDel,
 		Args:          []interface{}{where[kIndexUser], where[kIndexRecordingId]},
 	}
 }
 
-func (this *UserRecordingLikeBuild) Update(args []interface{}, where []interface{}) *ShardingSQL {
-	return &ShardingSQL{
+func (this *UserRecordingLikeBuild) Update(args []interface{}, where []interface{}) *models.ShardingSQL {
+	return &models.ShardingSQL{
 		ShardingIndex: this.getShardingIndex(args),
 		SQL:           kSQLUserRecordingUpdate,
 		Args: []interface{}{
@@ -74,8 +75,8 @@ func (this *UserRecordingLikeBuild) Update(args []interface{}, where []interface
 	}
 }
 
-func (this *UserRecordingLikeBuild) Insert(args []interface{}) *ShardingSQL {
-	return &ShardingSQL{
+func (this *UserRecordingLikeBuild) Insert(args []interface{}) *models.ShardingSQL {
+	return &models.ShardingSQL{
 		ShardingIndex: this.getShardingIndex(args),
 		SQL:           kSQLUserRecordingInsert,
 		Args: []interface{}{
@@ -84,10 +85,10 @@ func (this *UserRecordingLikeBuild) Insert(args []interface{}) *ShardingSQL {
 	}
 }
 
-func (this *UserRecordingLikeBuild) InsertIgnore(model interface{}) *ShardingSQL {
+func (this *UserRecordingLikeBuild) InsertIgnore(model interface{}) *models.ShardingSQL {
 	m := model.(*UserRecordingLike)
 	shardId, _ := this.FindForKey(m.UserId)
-	return &ShardingSQL{
+	return &models.ShardingSQL{
 		ShardingIndex: shardId,
 		SQL:           kSQLUserRecordingInsertIgnore,
 		Args: []interface{}{

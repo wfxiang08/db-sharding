@@ -9,8 +9,8 @@ import (
 )
 
 type dbHelperRecordingLike struct {
-	batchModels   []*models.UserRecordingLike
-	shardedModels [][]*models.UserRecordingLike
+	batchModels   []*UserRecordingLike
+	shardedModels [][]*UserRecordingLike
 	builder       models.ModelBuilder
 	originTable   string
 	lastId        int64
@@ -24,14 +24,14 @@ type dbHelperRecordingLike struct {
 func NewDbHelperRecordingLike(originTable string, cacheSize int64) *dbHelperRecordingLike {
 
 	result := &dbHelperRecordingLike{
-		builder:       models.NewUserRecordingLikeBuild(logic.TotalShardNum),
+		builder:       NewUserRecordingLikeBuild(logic.TotalShardNum),
 		lastId:        0,
 		originTable:   originTable,
-		shardedModels: make([][]*models.UserRecordingLike, logic.TotalShardNum),
+		shardedModels: make([][]*UserRecordingLike, logic.TotalShardNum),
 	}
 
 	for i := 0; i < logic.TotalShardNum; i++ {
-		result.shardedModels[i] = make([]*models.UserRecordingLike, 0, cacheSize)
+		result.shardedModels[i] = make([]*UserRecordingLike, 0, cacheSize)
 	}
 
 	return result
@@ -74,7 +74,7 @@ func (this *dbHelperRecordingLike) BatchMerge() {
 }
 
 func (this *dbHelperRecordingLike) ShardSort(shard int) {
-	sort.Sort(models.UserRecordingLikes(this.shardedModels[shard]))
+	sort.Sort(UserRecordingLikes(this.shardedModels[shard]))
 }
 
 func (this *dbHelperRecordingLike) PrintSummary() {
