@@ -1,7 +1,6 @@
 package logic
 
 import (
-	"conf"
 	"database/sql"
 	"encoding/json"
 	"fmt"
@@ -10,7 +9,8 @@ import (
 	"github.com/wfxiang08/cyutils/utils"
 	"github.com/wfxiang08/cyutils/utils/atomic2"
 	log "github.com/wfxiang08/cyutils/utils/rolling_log"
-	"models"
+	"github.com/wfxiang08/db-sharding/conf"
+	"github.com/wfxiang08/db-sharding/models"
 	"strings"
 	"sync"
 	"time"

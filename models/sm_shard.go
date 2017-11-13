@@ -37,11 +37,27 @@ func HashValue(value interface{}) uint64 {
 // 我们自定义的Sharding算法
 type SMHashShard struct {
 	ShardNum int
+	Location uint64
+}
+
+func NewSMHashShard(ShardNum int, Location uint64) *SMHashShard {
+	return &SMHashShard{
+		ShardNum: ShardNum,
+		Location: Location,
+	}
 }
 
 func (s *SMHashShard) FindForKey(key interface{}) (int, error) {
 	h := HashValue(key)
-	return int((h>>48)&((1<<12)-1)) % s.ShardNum, nil
+	smShardNum := int((h>>48)&((1<<12)-1)) % s.ShardNum
+	if s.Location < 2 {
+		return smShardNum, nil
+	} else {
+		// tb0, ..., tbN-1    ---> shard0
+		// tbN, ..., tb2N - 1 ---> shard1
+		//
+		return smShardNum * int(h%uint64(s.Location)), nil
+	}
 }
 func SMShard(h uint64) int {
 	return int((h >> 48) & ((1 << 12) - 1))

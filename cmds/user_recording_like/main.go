@@ -3,7 +3,7 @@ package main
 import (
 	"flag"
 	_ "github.com/jinzhu/gorm/dialects/mysql"
-	"logic"
+	"github.com/wfxiang08/db-sharding/logic"
 )
 
 // 正确性:

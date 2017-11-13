@@ -1,14 +1,14 @@
 package logic
 
 import (
-	"binlog"
-	"conf"
 	"github.com/fatih/color"
 	_ "github.com/jinzhu/gorm/dialects/mysql"
 	"github.com/wfxiang08/cyutils/utils/atomic2"
 	log "github.com/wfxiang08/cyutils/utils/rolling_log"
-	"models"
-	"mysql"
+	"github.com/wfxiang08/db-sharding/binlog"
+	"github.com/wfxiang08/db-sharding/conf"
+	"github.com/wfxiang08/db-sharding/models"
+	"github.com/wfxiang08/db-sharding/mysql"
 	"strconv"
 	"strings"
 	"sync"

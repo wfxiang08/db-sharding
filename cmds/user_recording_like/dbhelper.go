@@ -3,8 +3,8 @@ package main
 import (
 	"github.com/jinzhu/gorm"
 	log "github.com/wfxiang08/cyutils/utils/rolling_log"
-	"logic"
-	"models"
+	"github.com/wfxiang08/db-sharding/logic"
+	"github.com/wfxiang08/db-sharding/models"
 	"sort"
 )
 

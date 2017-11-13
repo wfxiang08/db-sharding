@@ -6,12 +6,12 @@
 package logic
 
 import (
-	"binlog"
 	gosql "database/sql"
 	"fmt"
 	"github.com/outbrain/golib/sqlutils"
 	log "github.com/wfxiang08/cyutils/utils/rolling_log"
-	"mysql"
+	"github.com/wfxiang08/db-sharding/binlog"
+	"github.com/wfxiang08/db-sharding/mysql"
 	"strings"
 	"sync"
 	"time"

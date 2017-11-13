@@ -2,7 +2,7 @@ package main
 
 import (
 	log "github.com/wfxiang08/cyutils/utils/rolling_log"
-	"models"
+	"github.com/wfxiang08/db-sharding/models"
 )
 
 // TODO: 可以考虑通过反射来自动完成SQL语句的生成

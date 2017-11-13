@@ -7,7 +7,7 @@ package binlog
 
 import (
 	"fmt"
-	"mysql"
+	"github.com/wfxiang08/db-sharding/mysql"
 )
 
 // BinlogEntry describes an entry in the binary log

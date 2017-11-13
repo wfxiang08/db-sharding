@@ -14,8 +14,8 @@ import (
 	"golang.org/x/net/context"
 
 	log "github.com/wfxiang08/cyutils/utils/rolling_log"
-	"mysql"
-	"sql"
+	"github.com/wfxiang08/db-sharding/mysql"
+	"github.com/wfxiang08/db-sharding/sql"
 )
 
 type GoMySQLReader struct {

@@ -7,7 +7,7 @@ package binlog
 
 import (
 	"fmt"
-	"sql"
+	"github.com/wfxiang08/db-sharding/sql"
 	"strings"
 )
 
