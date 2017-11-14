@@ -15,11 +15,15 @@ import (
 )
 
 const (
-	TotalShardNum         = 32
 	BatchWriteCount       = 2000
 	BatchReadCount        = 2000
 	MaxRetryNum           = 10
 	MaxBinlogDelaySeconds = 5
+)
+
+var (
+	TotalShardNum                = 32 // 默认是32, 如果每个DB内的table被拆分，则为32 * replication(被拆分数)
+	BatchInsertSleepMilliseconds = 20
 )
 
 // 原始的Table(每次只考虑单个的db/table, 或者单台机器上的一类tables)
@@ -90,6 +94,27 @@ func BuildAppliers(wg *sync.WaitGroup, cacheSize int, dbHelper models.DBHelper, 
 	shardingAppliers := make([]*ShardingApplier, TotalShardNum)
 	for i := 0; i < TotalShardNum; i++ {
 		shardingAppliers[i], err = NewShardingApplier(i, BatchWriteCount, cacheSize, dbConfig, dryRun, dbHelper.GetBuilder())
+		if err != nil {
+			log.PanicErrorf(err, "NewShardingApplier failed")
+		}
+
+		wg.Add(1)
+		// 启动消费者进程
+		go shardingAppliers[i].Run(wg)
+	}
+	return ShardingAppliers(shardingAppliers)
+}
+
+func BuildBatchAppliersWithRepliction(wg *sync.WaitGroup, replication int, cacheSize int, dbHelper models.DBHelper,
+	dryRun bool, dbConfig *conf.DatabaseConfig) ShardingAppliers {
+
+	var err error
+	// 1. 准备消费者
+	shardingAppliers := make([]*ShardingApplier, TotalShardNum*replication)
+	for i := 0; i < TotalShardNum; i++ {
+
+		dbIndex := i / replication
+		shardingAppliers[i], err = NewShardingApplier(dbIndex, BatchWriteCount, cacheSize, dbConfig, dryRun, dbHelper.GetBuilder())
 		if err != nil {
 			log.PanicErrorf(err, "NewShardingApplier failed")
 		}

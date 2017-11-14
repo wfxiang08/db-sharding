@@ -84,8 +84,10 @@ func (this *ShardingApplier) Close() {
 
 // 添加到队列末尾
 func (this *ShardingApplier) PushSQL(sql *models.ShardingSQL) {
-	this.sqls <- sql
-	this.totalPushed++
+	if sql != nil {
+		this.sqls <- sql
+		this.totalPushed++
+	}
 }
 
 // retryOperation attempts up to `count` attempts at running given function,
@@ -198,7 +200,7 @@ func (this *ShardingApplier) Run(wg *sync.WaitGroup) {
 			}
 
 			if len(this.sqlsBuffered) >= this.batchInsertSize {
-				time.Sleep(time.Millisecond * 20) // sleep 20ms
+				time.Sleep(time.Millisecond * time.Duration(BatchInsertSleepMilliseconds)) // sleep 20ms
 			}
 
 			this.totalExecuted += len(this.sqlsBuffered)
