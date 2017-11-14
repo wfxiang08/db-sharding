@@ -64,7 +64,7 @@ func (this *DbHelperRecordingLike) NeedReOrder() bool {
 	return this.needReOrder
 }
 
-func (this *DbHelperRecordingLike) BatchMerge(dbAlias string, sqlApplier models.SqlApplier) {
+func (this *DbHelperRecordingLike) BatchMerge(sqlApplier models.SqlApplier, tableName string, sourceDBAlias string) {
 	for _, model := range this.batchModels {
 		shardIndex := this.builder.GetShardingIndex4Model(model)
 		if this.ShardFilter(shardIndex) {
@@ -85,7 +85,10 @@ func (this *DbHelperRecordingLike) BatchMerge(dbAlias string, sqlApplier models.
 }
 
 func (this *DbHelperRecordingLike) ShardSort(shard int) {
-	sort.Sort(UserRecordingLikes(this.shardedModels[shard]))
+	if this.NeedReOrder() {
+		sort.Sort(UserRecordingLikes(this.shardedModels[shard]))
+	}
+
 }
 
 func (this *DbHelperRecordingLike) PrintSummary() {
