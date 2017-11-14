@@ -18,12 +18,12 @@ import (
 
 // 接受Event
 type ShardingApplier struct {
-	shardingIndex int
-	sqlsBuffered  []*models.ShardingSQL
-	sqls          chan *models.ShardingSQL
-	cacheSize     int
-	maxRetries    int
-	db            *sql.DB
+	shardingIndex   int
+	sqlsBuffered    []*models.ShardingSQL
+	sqls            chan *models.ShardingSQL
+	batchInsertSize int
+	maxRetries      int
+	db              *sql.DB
 
 	totalPushed   int
 	totalExecuted int
@@ -51,13 +51,13 @@ func (this ShardingAppliers) SetBatchInsertMode(batchInsert bool) {
 
 func NewShardingApplier(shardingIndex, batchSize int, cacheSize int, config *conf.DatabaseConfig, dryRun bool, builder models.ModelBuilder) (*ShardingApplier, error) {
 	result := &ShardingApplier{
-		shardingIndex: shardingIndex,
-		sqlsBuffered:  make([]*models.ShardingSQL, 0, batchSize),
-		sqls:          make(chan *models.ShardingSQL, cacheSize), // 多保留一些数据，保证各个shard能并发跑起来
-		cacheSize:     cacheSize,
-		maxRetries:    10,
-		dryRun:        dryRun,
-		builder:       builder,
+		shardingIndex:   shardingIndex,
+		sqlsBuffered:    make([]*models.ShardingSQL, 0, batchSize),
+		sqls:            make(chan *models.ShardingSQL, cacheSize), // 多保留一些数据，保证各个shard能并发跑起来
+		batchInsertSize: batchSize,
+		maxRetries:      10,
+		dryRun:          dryRun,
+		builder:         builder,
 	}
 
 	result.isClosed.Set(false)
@@ -134,7 +134,7 @@ func (this *ShardingApplier) Run(wg *sync.WaitGroup) {
 			timeout = true
 		}
 
-		if len(this.sqlsBuffered) >= this.cacheSize || (len(this.sqlsBuffered) > 0 && timeout) {
+		if len(this.sqlsBuffered) >= this.batchInsertSize || (len(this.sqlsBuffered) > 0 && timeout) {
 			// 有数据，或timeout
 			batchSQL := func() error {
 				if this.batchInsertMode.Get() {
@@ -197,12 +197,17 @@ func (this *ShardingApplier) Run(wg *sync.WaitGroup) {
 				}
 			}
 
+			if len(this.sqlsBuffered) >= this.batchInsertSize {
+				time.Sleep(time.Millisecond * 20) // sleep 20ms
+			}
+
 			this.totalExecuted += len(this.sqlsBuffered)
 			this.sqlsBuffered = this.sqlsBuffered[0:0]
 
 			log.Printf(color.GreenString("Shard: %02d - apply progress: %.2f%%")+", total_executed: %d/%d", this.shardingIndex,
 				float64(this.totalExecuted)/float64(this.totalPushed)*100,
 				this.totalExecuted, this.totalPushed)
+
 		} else {
 			// 没有数据，要么退出，要么继续等待
 			if channelClosed {

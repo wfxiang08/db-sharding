@@ -16,8 +16,8 @@ import (
 
 const (
 	TotalShardNum         = 32
-	BatchWriteCount       = 4000
-	BatchReadCount        = 4000
+	BatchWriteCount       = 2000
+	BatchReadCount        = 2000
 	MaxRetryNum           = 10
 	MaxBinlogDelaySeconds = 5
 )

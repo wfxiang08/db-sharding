@@ -56,7 +56,7 @@ func (s *SMHashShard) FindForKey(key interface{}) (int, error) {
 		// tb0, ..., tbN-1    ---> shard0
 		// tbN, ..., tb2N - 1 ---> shard1
 		//
-		return smShardNum * int(h%uint64(s.Location)), nil
+		return smShardNum*int(s.Location) + int(h%uint64(s.Location)), nil
 	}
 }
 func SMShard(h uint64) int {
