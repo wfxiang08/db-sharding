@@ -22,3 +22,8 @@ func GetConfPath(filePath string) string {
 	return path.Join(pwd, filePath)
 
 }
+
+func IsDir(path string) bool {
+	info, err := os.Stat(path)
+	return err == nil && info.IsDir()
+}

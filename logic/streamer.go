@@ -85,17 +85,19 @@ type EventsStreamer struct {
 	eventsChannel            chan *binlog.BinlogEntry
 	binlogReader             *binlog.GoMySQLReader
 	serverId                 uint
+	metaDir                  string
+	masterInfo               *MasterInfo
 }
 
-func NewEventsStreamer(connectionConfig *mysql.ConnectionConfig, databaseName string, maxRetry int64, serverId uint) *EventsStreamer {
+func NewEventsStreamer(connectionConfig *mysql.ConnectionConfig, maxRetry int64, serverId uint, metaDir string) *EventsStreamer {
 	return &EventsStreamer{
 		connectionConfig: connectionConfig,
-		DatabaseName:     databaseName,
 		maxRetry:         maxRetry,
 		listeners:        [](*BinlogEventListener){},
 		listenersMutex:   &sync.Mutex{},
 		eventsChannel:    make(chan *binlog.BinlogEntry, EventsChannelBufferSize),
 		serverId:         serverId,
+		metaDir:          metaDir,
 	}
 }
 
@@ -161,15 +163,25 @@ func (this *EventsStreamer) InitDBConnections(binlogFile string, binlogPos int64
 		return err
 	}
 
+	this.masterInfo, _ = LoadMasterInfo(this.metaDir, this.connectionConfig.Key)
+	if this.masterInfo == nil {
+		log.Panicf("MasterInfo not found....")
+	}
+
 	// 获取当前的binlog的位置
-	if len(binlogFile) == 0 {
+	// 如果没有有效的信息
+	if len(binlogFile) == 0 || len(this.masterInfo.filePath) == 0 {
 		if err := this.readCurrentBinlogCoordinates(); err != nil {
 			return err
 		}
 	} else {
-		this.initialBinlogCoordinates = &mysql.BinlogCoordinates{
-			LogFile: binlogFile,
-			LogPos:  binlogPos,
+		if len(binlogFile) > 0 {
+			this.initialBinlogCoordinates = &mysql.BinlogCoordinates{
+				LogFile: binlogFile,
+				LogPos:  binlogPos,
+			}
+		} else {
+			this.initialBinlogCoordinates = this.masterInfo.Position()
 		}
 		log.Printf("Get initial binlog coordinates from input: %s", this.initialBinlogCoordinates.String())
 	}
@@ -190,7 +202,9 @@ func (this *EventsStreamer) initBinlogReader(binlogCoordinates *mysql.BinlogCoor
 		return err
 	}
 	// 设置起始read的位置
+	// 如果binlog出现问题，如何处理呢?
 	if err := goMySQLReader.ConnectBinlogStreamer(*binlogCoordinates); err != nil {
+		log.ErrorErrorf(err, "ConnectBinlogStreamer failed")
 		return err
 	}
 

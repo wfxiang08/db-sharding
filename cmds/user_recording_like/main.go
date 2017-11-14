@@ -8,6 +8,7 @@ import (
 	log "github.com/wfxiang08/cyutils/utils/rolling_log"
 	"github.com/wfxiang08/db-sharding/conf"
 	"github.com/wfxiang08/db-sharding/logic"
+	"github.com/wfxiang08/db-sharding/media_utils"
 	"sync"
 )
 
@@ -40,6 +41,8 @@ var (
 	// 根据数据规模来选择
 	// 如果数据量太大，可以考虑临时找一个大内存的云主机，完事之后再退
 	cacheSize = flag.Int64("batch-cache", 20000000, "batch process init cache size")
+
+	metaDir = flag.String("meta-dir", "", "binlog meta dir")
 )
 
 //
@@ -93,12 +96,14 @@ func main() {
 		log.Printf(color.MagentaString("Data sharding finished"))
 
 	} else {
-
+		if len(*metaDir) == 0 || !media_utils.IsDir(*metaDir) {
+			log.Panicf("Invalid meta-dir")
+		}
 		// 只处理binlog(一次只处理一台机器)
 		logic.BinlogShard4SingleMachine(wg,
 			originTable, dbConfig,
 			dbHelper, shardingAppliers, &stopInput,
-			*replicaServerId, *binlogInfo)
+			*replicaServerId, *binlogInfo, *metaDir)
 
 	}
 

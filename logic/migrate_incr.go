@@ -22,7 +22,7 @@ func BinlogShard4SingleMachine(wg *sync.WaitGroup, originTable *OriginTable, dbC
 	dbHelper models.DBHelper,
 	shardingAppliers ShardingAppliers,
 	stopInput *atomic2.Bool,
-	replicaServerId uint, binlogInfo string) {
+	replicaServerId uint, binlogInfo string, metaDir string) {
 
 	// binlog一次只处理一台机器
 	_, hostname, port := dbConfig.GetDB(originTable.DbAlias)
@@ -44,9 +44,7 @@ func BinlogShard4SingleMachine(wg *sync.WaitGroup, originTable *OriginTable, dbC
 	// 初始化stream
 	defer wg.Done()
 
-	var eventsStreamer *EventsStreamer
-
-	eventsStreamer = NewEventsStreamer(sourceConfig, "", MaxRetryNum, replicaServerId)
+	eventsStreamer := NewEventsStreamer(sourceConfig, MaxRetryNum, replicaServerId, metaDir)
 
 	if err := eventsStreamer.InitDBConnections(binlogFile, binlogPos); err != nil {
 		log.PanicErrorf(err, "InitDBConnections failed")
