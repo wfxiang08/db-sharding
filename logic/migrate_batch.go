@@ -72,7 +72,7 @@ func BatchReadDB(wg *sync.WaitGroup, tableName string, sourceDBAlias string, dbC
 		if recordCount == 0 {
 			break
 		} else {
-			dbHelper.BatchMerge(sourceDBAlias, shardingAppliers)
+			dbHelper.BatchMerge(shardingAppliers, tableName, sourceDBAlias)
 
 			totalRowsProcessed += recordCount
 			t1 := time.Now()

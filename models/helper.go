@@ -9,7 +9,7 @@ type DBHelper interface {
 	GetBuilder() ModelBuilder
 	ShardFilter(shardIndex int) bool
 	BatchRead(db *gorm.DB, tableName string, sourceDBAlias string) (*gorm.DB, int)
-	BatchMerge(sourceDBAlias string, sqlApplier SqlApplier)
+	BatchMerge(sqlApplier SqlApplier, tableName string, sourceDBAlias string)
 
 	NeedReOrder() bool
 
