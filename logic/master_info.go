@@ -51,7 +51,6 @@ func LoadMasterInfo(dataDir string, key mysql.InstanceKey) (*MasterInfo, error) 
 }
 
 func (m *MasterInfo) Save(pos *mysql.BinlogCoordinates) error {
-	log.Infof("save position %s", pos)
 
 	m.Lock()
 	defer m.Unlock()
@@ -65,7 +64,7 @@ func (m *MasterInfo) Save(pos *mysql.BinlogCoordinates) error {
 
 	// 1s保存一次数据
 	n := time.Now()
-	if n.Sub(m.lastSaveTime) < time.Second {
+	if n.Sub(m.lastSaveTime) < time.Second*2 {
 		return nil
 	}
 
