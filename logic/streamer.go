@@ -223,7 +223,7 @@ func (this *EventsStreamer) GetReconnectBinlogCoordinates() *mysql.BinlogCoordin
 
 // readCurrentBinlogCoordinates reads master status from hooked server
 func (this *EventsStreamer) readCurrentBinlogCoordinates() error {
-	query := `show /* gh-ost readCurrentBinlogCoordinates */ master status`
+	query := `show master status`
 	foundMasterStatus := false
 
 	// 如何处理一些特殊的请求?
@@ -291,6 +291,9 @@ func (this *EventsStreamer) StreamEvents(canStopStreaming func() bool) error {
 				return err
 			}
 			this.binlogReader.LastAppliedRowsEventHint = lastAppliedRowsEventHint
+
+			// 保存binlog的读取信息
+			this.masterInfo.Save(&lastAppliedRowsEventHint)
 		}
 	}
 }
