@@ -1,0 +1,5 @@
+user = "root"
+password = ""
+dbs = [
+    "local:node1@localhost",
+    ]
