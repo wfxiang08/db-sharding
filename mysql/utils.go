@@ -8,12 +8,10 @@ package mysql
 import (
 	gosql "database/sql"
 	"fmt"
-	"time"
-
-	"github.com/github/gh-ost/go/sql"
-
 	"github.com/outbrain/golib/log"
 	"github.com/outbrain/golib/sqlutils"
+	"github.com/wfxiang08/db-sharding/sql"
+	"time"
 )
 
 const MaxTableNameLength = 64

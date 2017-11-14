@@ -1,16 +1,10 @@
 hash: 7f4367e5fad17aa6fb215c88f7780b25d52c956af79d8f85c3022aa379da2d91
-updated: 2017-11-07T23:19:40.103117774+08:00
+updated: 2017-11-14T13:12:59.588110236+08:00
 imports:
 - name: github.com/BurntSushi/toml
   version: b26d9c308763d68093482582cea63d69be07a0f0
 - name: github.com/fatih/color
   version: 570b54cabe6b8eb0bc2dfce68d964677d63b5260
-- name: github.com/github/gh-ost
-  version: 52f2dd7a203305ff52741fa3cdc060e506bc5a9f
-  subpackages:
-  - go/base
-  - go/mysql
-  - go/sql
 - name: github.com/go-sql-driver/mysql
   version: 3654d25ec346ee8ce71a68431025458d52a38ac0
 - name: github.com/jinzhu/gorm
@@ -76,12 +70,4 @@ imports:
   - encoding/internal
   - encoding/internal/identifier
   - transform
-- name: gopkg.in/gcfg.v1
-  version: 298b7a6a3838f79debfaee8bd3bfb2b8d779e756
-  subpackages:
-  - scanner
-  - token
-  - types
-- name: gopkg.in/warnings.v0
-  version: 8a331561fe74dadba6edfc59f3be66c22c3b065d
 testImports: []
