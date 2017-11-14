@@ -265,7 +265,12 @@ func (this *EventsStreamer) StreamEvents(canStopStreaming func() bool) error {
 	for {
 		// 第一步: Streaming
 		//        如果失败，则等待5s
-		if err := this.binlogReader.StreamEvents(canStopStreaming, this.eventsChannel); err != nil {
+		if err := this.binlogReader.StreamEvents(func() bool {
+			// 保存binlog的读取信息
+			this.masterInfo.Save(&this.binlogReader.LastAppliedRowsEventHint)
+			return canStopStreaming()
+
+		}, this.eventsChannel); err != nil {
 			log.Infof("StreamEvents encountered unexpected error: %+v", err)
 
 			time.Sleep(ReconnectStreamerSleepSeconds * time.Second)
@@ -291,9 +296,6 @@ func (this *EventsStreamer) StreamEvents(canStopStreaming func() bool) error {
 				return err
 			}
 			this.binlogReader.LastAppliedRowsEventHint = lastAppliedRowsEventHint
-
-			// 保存binlog的读取信息
-			this.masterInfo.Save(&lastAppliedRowsEventHint)
 		}
 	}
 }

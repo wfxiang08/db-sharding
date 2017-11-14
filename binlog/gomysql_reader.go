@@ -137,9 +137,6 @@ func (this *GoMySQLReader) handleRowsEvent(ev *replication.BinlogEvent, rowsEven
 
 // StreamEvents
 func (this *GoMySQLReader) StreamEvents(canStopStreaming func() bool, entriesChannel chan<- *BinlogEntry) error {
-	if canStopStreaming() {
-		return nil
-	}
 	for {
 		// 任何时候都可以中断
 		if canStopStreaming() {
