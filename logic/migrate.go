@@ -110,7 +110,7 @@ func BuildBatchAppliersWithRepliction(wg *sync.WaitGroup, replication int, cache
 
 	var err error
 	// 1. 准备消费者
-	shardingAppliers := make([]*ShardingApplier, TotalShardNum*replication)
+	shardingAppliers := make([]*ShardingApplier, TotalShardNum)
 	for i := 0; i < TotalShardNum; i++ {
 
 		dbIndex := i / replication
