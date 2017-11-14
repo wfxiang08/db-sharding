@@ -9,7 +9,6 @@ import (
 )
 
 type DbHelperRecordingLike struct {
-	batchModels   []*UserRecordingLike
 	shardedModels [][]*UserRecordingLike
 	builder       models.ModelBuilder
 	needReOrder   bool
@@ -44,28 +43,27 @@ func (this *DbHelperRecordingLike) ShardFilter(shardIndex int) bool {
 		return false
 	}
 }
-func (this *DbHelperRecordingLike) BatchRead(db *gorm.DB, tableName string, dbAlias string) (*gorm.DB, int) {
-	this.batchModels = nil
+
+func (this *DbHelperRecordingLike) BatchProcess(db *gorm.DB, tableName string, sourceDBAlias string, sqlApplier models.SqlApplier) (*gorm.DB, int) {
+	var batchModels []*UserRecordingLike
 	dbInfo := db.Table(tableName).
 		Where("id > ?", this.lastId).
-		Order("id ASC").Limit(logic.BatchReadCount).Find(&this.batchModels)
-	return dbInfo, len(this.batchModels)
+		Order("id ASC").Limit(logic.BatchReadCount).Find(&batchModels)
+	if dbInfo.Error != nil {
+		return dbInfo, len(batchModels)
+	}
+
+	this.batchProcess(batchModels, sqlApplier)
+
+	// 更新遍历状态
+	lastItem := batchModels[len(batchModels)-1]
+	this.lastId = lastItem.Id
+
+	return dbInfo, len(batchModels)
 }
 
-////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-// 下面的代码可以拷贝
-func (this *DbHelperRecordingLike) GetBuilder() models.ModelBuilder {
-	return this.builder
-}
-
-// 需要重新排序
-func (this *DbHelperRecordingLike) NeedReOrder() bool {
-	return this.needReOrder
-}
-
-func (this *DbHelperRecordingLike) BatchMerge(sqlApplier models.SqlApplier, tableName string, sourceDBAlias string) {
-	for _, model := range this.batchModels {
+func (this *DbHelperRecordingLike) batchProcess(batchModels []*UserRecordingLike, sqlApplier models.SqlApplier) {
+	for _, model := range batchModels {
 		shardIndex := this.builder.GetShardingIndex4Model(model)
 		if this.ShardFilter(shardIndex) {
 			// 机器人，数据直接扔掉
@@ -79,9 +77,18 @@ func (this *DbHelperRecordingLike) BatchMerge(sqlApplier models.SqlApplier, tabl
 		}
 	}
 
-	// 更新遍历状态
-	lastItem := this.batchModels[len(this.batchModels)-1]
-	this.lastId = lastItem.Id
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// 下面的代码可以拷贝
+func (this *DbHelperRecordingLike) GetBuilder() models.ModelBuilder {
+	return this.builder
+}
+
+// 需要重新排序
+func (this *DbHelperRecordingLike) NeedReOrder() bool {
+	return this.needReOrder
 }
 
 func (this *DbHelperRecordingLike) ShardSort(shard int) {

@@ -54,7 +54,7 @@ func BatchReadDB(wg *sync.WaitGroup, tableName string, sourceDBAlias string, dbC
 		recordCount := 0
 		t0 := time.Now()
 		for i := 0; i < MaxRetryNum; i++ {
-			dbInfo, count := dbHelper.BatchRead(db, tableName, sourceDBAlias)
+			dbInfo, count := dbHelper.BatchProcess(db, tableName, sourceDBAlias, shardingAppliers)
 
 			if dbInfo.Error != nil && i != MaxRetryNum-1 {
 				log.ErrorErrorf(dbInfo.Error, "db record read failed")
@@ -72,7 +72,6 @@ func BatchReadDB(wg *sync.WaitGroup, tableName string, sourceDBAlias string, dbC
 		if recordCount == 0 {
 			break
 		} else {
-			dbHelper.BatchMerge(shardingAppliers, tableName, sourceDBAlias)
 
 			totalRowsProcessed += recordCount
 			t1 := time.Now()

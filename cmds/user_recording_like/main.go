@@ -42,6 +42,9 @@ var (
 	cacheSize = flag.Int64("batch-cache", 20000000, "batch process init cache size")
 )
 
+//
+// go build github.com/wfxiang08/db-sharding/cmds/user_recording_like
+//
 func main() {
 	flag.Parse()
 

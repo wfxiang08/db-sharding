@@ -8,8 +8,9 @@ import "github.com/jinzhu/gorm"
 type DBHelper interface {
 	GetBuilder() ModelBuilder
 	ShardFilter(shardIndex int) bool
-	BatchRead(db *gorm.DB, tableName string, sourceDBAlias string) (*gorm.DB, int)
-	BatchMerge(sqlApplier SqlApplier, tableName string, sourceDBAlias string)
+
+	// 批量处理
+	BatchProcess(db *gorm.DB, tableName string, sourceDBAlias string, sqlApplier SqlApplier) (*gorm.DB, int)
 
 	NeedReOrder() bool
 
