@@ -37,10 +37,12 @@ type ShardingApplier struct {
 
 type ShardingAppliers []*ShardingApplier
 
+// 自动处理Sharding的逻辑
 func (this ShardingAppliers) PushSQL(sql *models.ShardingSQL) {
 	this[sql.ShardingIndex].PushSQL(sql)
 }
 
+// 批量修改模式
 func (this ShardingAppliers) SetBatchInsertMode(batchInsert bool) {
 	for _, applier := range this {
 		applier.batchInsertMode.Set(batchInsert)

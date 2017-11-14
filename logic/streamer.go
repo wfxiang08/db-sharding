@@ -43,10 +43,15 @@ func (l *BinlogEventListener) init() {
 		l.tableNameLower = l.tableNameLower[0 : len(l.tableNameLower)-1]
 	}
 }
-func (l *BinlogEventListener) Match(table string, db string) bool {
-	db = strings.ToLower(db)
-	table = strings.ToLower(table)
 
+// dbPattern            false             true
+// databaseNameLower    dbname			  dbname_prefix*
+//
+func (l *BinlogEventListener) Match(db string, table string) bool {
+	db = strings.ToLower(db)
+	// 匹配db
+	// prefix*
+	// full_match
 	if l.dbPattern {
 		if !strings.HasPrefix(db, l.databaseNameLower) {
 			return false
@@ -55,6 +60,7 @@ func (l *BinlogEventListener) Match(table string, db string) bool {
 		return false
 	}
 
+	table = strings.ToLower(table)
 	if l.tablePattern {
 		return strings.HasPrefix(table, l.tableNameLower)
 	} else {

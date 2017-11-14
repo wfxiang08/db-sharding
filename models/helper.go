@@ -12,6 +12,7 @@ type DBHelper interface {
 	// 批量处理
 	BatchProcess(db *gorm.DB, tableName string, sourceDBAlias string, sqlApplier SqlApplier) (*gorm.DB, int)
 
+	// 是否需要重拍数据，如果不需要，则不启动buffer
 	NeedReOrder() bool
 
 	PrintSummary()

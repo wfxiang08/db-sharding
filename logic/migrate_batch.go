@@ -88,7 +88,7 @@ func BatchReadDB(wg *sync.WaitGroup, tableName string, sourceDBAlias string, dbC
 
 }
 
-func ReorderAndApply(dbHelper models.DBHelper, shardingAppliers []*ShardingApplier) {
+func ReorderAndApply(dbHelper models.DBHelper, shardingAppliers ShardingAppliers) {
 	dbHelper.PrintSummary()
 
 	if dbHelper.NeedReOrder() {
@@ -105,6 +105,7 @@ func ReorderAndApply(dbHelper models.DBHelper, shardingAppliers []*ShardingAppli
 				shardLen := dbHelper.GetShardLen(shardIndex)
 				log.Printf("SHARDXX %d, total size: %d", shardIndex, shardLen)
 				applier := shardingAppliers[shardIndex]
+
 				applier.batchInsertMode.Set(true)
 
 				for j := 0; j < shardLen; j++ {
@@ -114,9 +115,9 @@ func ReorderAndApply(dbHelper models.DBHelper, shardingAppliers []*ShardingAppli
 
 					sql := dbHelper.GetBuilder().InsertIgnore(dbHelper.GetShardItem(shardIndex, j, true))
 					applier.PushSQL(sql)
-
 				}
 
+				// 尽快释放内存
 				dbHelper.ClearShard(shardIndex)
 
 				// 否则由手动关闭(不停订阅binlog)
