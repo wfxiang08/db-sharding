@@ -12,7 +12,7 @@ type DbHelperRecordingLike struct {
 	batchModels   []*UserRecordingLike
 	shardedModels [][]*UserRecordingLike
 	builder       models.ModelBuilder
-	originTable   string
+	needReOrder   bool
 	lastId        int64
 }
 
@@ -21,13 +21,13 @@ type DbHelperRecordingLike struct {
 // 2. ShardFilter
 // 3. BatchRead(如果是以id为主键，则也可以直接拷贝)
 //
-func NewDbHelperRecordingLike(originTable string, cacheSize int64) *DbHelperRecordingLike {
+func NewDbHelperRecordingLike(cacheSize int64, needReOrder bool) *DbHelperRecordingLike {
 
 	result := &DbHelperRecordingLike{
 		builder:       NewUserRecordingLikeBuild(logic.TotalShardNum),
 		lastId:        0,
-		originTable:   originTable,
 		shardedModels: make([][]*UserRecordingLike, logic.TotalShardNum),
+		needReOrder:   needReOrder,
 	}
 
 	for i := 0; i < logic.TotalShardNum; i++ {
@@ -44,9 +44,9 @@ func (this *DbHelperRecordingLike) ShardFilter(shardIndex int) bool {
 		return false
 	}
 }
-func (this *DbHelperRecordingLike) BatchRead(db *gorm.DB) (*gorm.DB, int) {
+func (this *DbHelperRecordingLike) BatchRead(db *gorm.DB, tableName string, dbAlias string) (*gorm.DB, int) {
 	this.batchModels = nil
-	dbInfo := db.Table(this.originTable).
+	dbInfo := db.Table(tableName).
 		Where("id > ?", this.lastId).
 		Order("id ASC").Limit(logic.BatchReadCount).Find(&this.batchModels)
 	return dbInfo, len(this.batchModels)
@@ -59,12 +59,23 @@ func (this *DbHelperRecordingLike) GetBuilder() models.ModelBuilder {
 	return this.builder
 }
 
-func (this *DbHelperRecordingLike) BatchMerge() {
+// 需要重新排序
+func (this *DbHelperRecordingLike) NeedReOrder() bool {
+	return this.needReOrder
+}
+
+func (this *DbHelperRecordingLike) BatchMerge(dbAlias string, sqlApplier models.SqlApplier) {
 	for _, model := range this.batchModels {
 		shardIndex := this.builder.GetShardingIndex4Model(model)
 		if this.ShardFilter(shardIndex) {
 			// 机器人，数据直接扔掉
-			this.shardedModels[shardIndex] = append(this.shardedModels[shardIndex], model)
+			if this.NeedReOrder() {
+				// 先buffer, 在排序
+				this.shardedModels[shardIndex] = append(this.shardedModels[shardIndex], model)
+			} else {
+				// 直接Apply
+				sqlApplier.PushSQL(this.builder.InsertIgnore(model))
+			}
 		}
 	}
 

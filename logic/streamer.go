@@ -25,7 +25,41 @@ type BinlogEventListener struct {
 	databaseNameLower string
 	tableNameLower    string
 
+	dbPattern    bool
+	tablePattern bool
+
 	onDmlEvent func(binlogEntry *binlog.BinlogEntry) error
+}
+
+func (l *BinlogEventListener) init() {
+	l.databaseNameLower = strings.ToLower(l.databaseName)
+	l.tableNameLower = strings.ToLower(l.tableName)
+	if strings.HasSuffix(l.databaseNameLower, "*") {
+		l.dbPattern = true
+		l.databaseNameLower = l.databaseNameLower[0 : len(l.databaseNameLower)-1]
+	}
+	if strings.HasSuffix(l.tableNameLower, "*") {
+		l.tablePattern = true
+		l.tableNameLower = l.tableNameLower[0 : len(l.tableNameLower)-1]
+	}
+}
+func (l *BinlogEventListener) Match(table string, db string) bool {
+	db = strings.ToLower(db)
+	table = strings.ToLower(table)
+
+	if l.dbPattern {
+		if !strings.HasPrefix(db, l.databaseNameLower) {
+			return false
+		}
+	} else if db != l.databaseNameLower {
+		return false
+	}
+
+	if l.tablePattern {
+		return strings.HasPrefix(table, l.tableNameLower)
+	} else {
+		return table == l.tableNameLower
+	}
 }
 
 const (
@@ -74,13 +108,13 @@ func (this *EventsStreamer) AddListener(
 		return fmt.Errorf("Empty table name in AddListener")
 	}
 	listener := &BinlogEventListener{
-		async:             async,
-		databaseName:      databaseName,
-		tableName:         tableName,
-		databaseNameLower: strings.ToLower(databaseName),
-		tableNameLower:    strings.ToLower(tableName),
-		onDmlEvent:        onDmlEvent,
+		async:        async,
+		databaseName: databaseName,
+		tableName:    tableName,
+		onDmlEvent:   onDmlEvent,
 	}
+	listener.init()
+
 	this.listeners = append(this.listeners, listener)
 	return nil
 }
@@ -96,10 +130,8 @@ func (this *EventsStreamer) notifyListeners(binlogEntry *binlog.BinlogEntry) {
 	for _, listener := range this.listeners {
 		listener := listener
 		// DB和Table一致，可以做一个预处理, 把listener的names都统一为小写
-		if listener.databaseNameLower != strings.ToLower(binlogEvent.DatabaseName) {
-			continue
-		}
-		if listener.tableNameLower != strings.ToLower(binlogEvent.TableName) {
+		// 所有的db, 或者满足条件的db
+		if !listener.Match(binlogEvent.DatabaseName, binlogEvent.TableName) {
 			continue
 		}
 

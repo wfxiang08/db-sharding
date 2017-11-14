@@ -22,12 +22,14 @@ const (
 	MaxBinlogDelaySeconds = 5
 )
 
-// 支持online将一个table拆分成为多个table
-func ShardingProcess(originTable string, sourceDBAlias string, dbHelper models.DBHelper, selectedShardOnly bool,
-	replicaServerId uint,
-	eventOnly bool, batchOnly bool, dbConfigFile string,
-	logPrefix string, dryRun bool, binlogInfo string) {
+// 原始的Table(每次只考虑单个的db/table, 或者单台机器上的一类tables)
+type OriginTable struct {
+	TablePattern    string // comment or comment*
+	DatabasePattern string // shard_0 or shard_*
+	DbAlias         string
+}
 
+func ShardingSetupLog(logPrefix string) {
 	// 1. 解析Log相关的配置
 	if len(logPrefix) > 0 {
 		f, err := log.NewRollingFile(logPrefix, 3)
@@ -35,7 +37,8 @@ func ShardingProcess(originTable string, sourceDBAlias string, dbHelper models.D
 			log.PanicErrorf(err, "open rolling log file failed: %s", logPrefix)
 		} else {
 			// 不能放在子函数中
-			defer f.Close()
+			// defer f.Close()
+			// 最终退出是，文件也会自动关闭
 			log.StdLog = log.New(f, "")
 		}
 	}
@@ -43,91 +46,50 @@ func ShardingProcess(originTable string, sourceDBAlias string, dbHelper models.D
 	// 默认是Debug模式
 	log.SetLevel(log.LEVEL_DEBUG)
 	log.SetFlags(log.Flags() | log.Lshortfile)
-
-	dbConfig, err := conf.NewConfigWithFile(dbConfigFile)
-	if err != nil {
-		log.ErrorErrorf(err, "NewConfigWithFile failed")
-		return
-	}
-
-	var stopInput atomic2.Bool
-	var pauseInput atomic2.Bool
-	wg := &sync.WaitGroup{}
-
-	// 1. 准备消费者
-	shardingAppliers := buildAppliers(wg, dbHelper, dryRun, dbConfig)
-
-	// 2. 设置数据源
-	var startStreamingEvent chan bool
-
-	// 如果不设置BatchOnly Mode, 那么启动binlog订阅
-	if !batchOnly {
-		if !eventOnly {
-			// 在开启binlog模式下，如果只是eventOnly, 则不需要通过 startStreamingEvent 来同步
-			startStreamingEvent = make(chan bool, 2) // 不要阻塞数据输入
-		}
-
-		BinlogShard(wg, originTable, sourceDBAlias, dbConfig, dbHelper, shardingAppliers, &stopInput, startStreamingEvent,
-			replicaServerId, binlogInfo)
-
-	}
-
-	// 如果不支持同步binlog, 则启动Batch Shard流程
-	if !eventOnly {
-		BatchShard(wg, sourceDBAlias, dbConfig, dbHelper, shardingAppliers, batchOnly,
-			&stopInput, &pauseInput, startStreamingEvent)
-
-	}
-
-	go func() {
-		// 接受停止信号
-		c := make(chan os.Signal, 1)
-		signal.Notify(c, syscall.SIGHUP, syscall.SIGTERM)
-
-		for true {
-			sig := <-c
-			if sig == syscall.SIGHUP {
-				if batchOnly {
-					// 中止拷贝数据, 重启拷贝数据
-					pauseInput.Set(!pauseInput.Get())
-					if pauseInput.Get() {
-						log.Printf(color.MagentaString("Pause input...."))
-					} else {
-						log.Printf(color.MagentaString("Resume input...."))
-					}
-				} else {
-					// 打印binlog的位置:
-
-				}
-			} else {
-				// 停止输入
-				if !stopInput.Get() {
-					log.Printf(color.MagentaString("Stop input recordings"))
-					stopInput.Set(true)
-
-					go func() {
-						time.Sleep((MaxBinlogDelaySeconds + 1) * time.Second)
-
-						// 关闭数据输入
-						for i := 0; i < TotalShardNum; i++ {
-							shardingAppliers[i].Close()
-						}
-					}()
-				}
-			}
-		}
-	}()
-
-	wg.Wait()
-	log.Printf(color.MagentaString("Data sharding finished"))
 }
 
-func buildAppliers(wg *sync.WaitGroup, dbHelper models.DBHelper, dryRun bool, dbConfig *conf.DatabaseConfig) []*ShardingApplier {
+func ShardingWaitingClose(batchOnly bool, pauseInput *atomic2.Bool, stopInput *atomic2.Bool, shardingAppliers ShardingAppliers) {
+	// 接受停止信号
+	c := make(chan os.Signal, 1)
+	signal.Notify(c, syscall.SIGHUP, syscall.SIGTERM)
+
+	for true {
+		sig := <-c
+		if sig == syscall.SIGHUP {
+			if batchOnly {
+				// 中止拷贝数据, 重启拷贝数据
+				pauseInput.Set(!pauseInput.Get())
+				if pauseInput.Get() {
+					log.Printf(color.MagentaString("Pause input...."))
+				} else {
+					log.Printf(color.MagentaString("Resume input...."))
+				}
+			} else {
+				// 打印binlog的位置:
+
+			}
+		} else {
+			// 停止输入
+			if stopInput.CompareAndSwap(false, true) {
+				log.Printf(color.MagentaString("Stop input recordings"))
+				go func() {
+					time.Sleep((MaxBinlogDelaySeconds + 1) * time.Second)
+					// 关闭数据输入
+					for i := 0; i < TotalShardNum; i++ {
+						shardingAppliers[i].Close()
+					}
+				}()
+			}
+		}
+	}
+}
+
+func BuildAppliers(wg *sync.WaitGroup, cacheSize int, dbHelper models.DBHelper, dryRun bool, dbConfig *conf.DatabaseConfig) ShardingAppliers {
 	var err error
 	// 1. 准备消费者
 	shardingAppliers := make([]*ShardingApplier, TotalShardNum)
 	for i := 0; i < TotalShardNum; i++ {
-		shardingAppliers[i], err = NewShardingApplier(i, BatchWriteCount, dbConfig, dryRun, dbHelper.GetBuilder())
+		shardingAppliers[i], err = NewShardingApplier(i, BatchWriteCount, cacheSize, dbConfig, dryRun, dbHelper.GetBuilder())
 		if err != nil {
 			log.PanicErrorf(err, "NewShardingApplier failed")
 		}
@@ -136,5 +98,5 @@ func buildAppliers(wg *sync.WaitGroup, dbHelper models.DBHelper, dryRun bool, db
 		// 启动消费者进程
 		go shardingAppliers[i].Run(wg)
 	}
-	return shardingAppliers
+	return ShardingAppliers(shardingAppliers)
 }

@@ -2,8 +2,13 @@ package main
 
 import (
 	"flag"
+	"github.com/fatih/color"
 	_ "github.com/jinzhu/gorm/dialects/mysql"
+	"github.com/wfxiang08/cyutils/utils/atomic2"
+	log "github.com/wfxiang08/cyutils/utils/rolling_log"
+	"github.com/wfxiang08/db-sharding/conf"
 	"github.com/wfxiang08/db-sharding/logic"
+	"sync"
 )
 
 // 正确性:
@@ -29,8 +34,7 @@ var (
 	logPrefix       = flag.String("log", "", "log file prefix")
 	dryRun          = flag.Bool("dry", false, "dry run")
 
-	batchOnly  = flag.Bool("batch-only", false, "batch only") // 不处理binlog, 默认是先处理批处理数据，然后再考虑binlog
-	eventOnly  = flag.Bool("event", false, "notrunk")         // 只处理binlog
+	batchMode  = flag.Bool("batch-model", false, "batch mode or event mode") // 不处理binlog, 默认是先处理批处理数据，然后再考虑binlog
 	binlogInfo = flag.String("bin", "", "binlog position")
 
 	// 根据数据规模来选择
@@ -41,16 +45,60 @@ var (
 func main() {
 	flag.Parse()
 
-	originTable := "user_recording_like"
-	sourceDBAlias := "final"
+	// 1. 设置日志
+	logic.ShardingSetupLog(*logPrefix)
 
+	originTableName := "user_recording_like"
+	originTable := &logic.OriginTable{
+		TablePattern:    originTableName,
+		DatabasePattern: "*",
+		DbAlias:         "final",
+	}
+
+	// 2. 解析config
+	dbConfig, err := conf.NewConfigWithFile(*dbConfigFile)
+	if err != nil {
+		log.ErrorErrorf(err, "NewConfigWithFile failed")
+		return
+	}
+
+	var stopInput atomic2.Bool
+	var pauseInput atomic2.Bool
+	wg := &sync.WaitGroup{}
+
+	// 3. 创建DbHelper
 	cacheSizeInt := *cacheSize
-	if *eventOnly {
+	if !*batchMode {
 		cacheSizeInt = 0
 	}
-	helper := NewDbHelperRecordingLike(originTable, cacheSizeInt)
-	logic.ShardingProcess(originTable, sourceDBAlias, helper, false,
-		*replicaServerId,
-		*eventOnly, *batchOnly, *dbConfigFile,
-		*logPrefix, *dryRun, *binlogInfo)
+	dbHelper := NewDbHelperRecordingLike(cacheSizeInt, true)
+
+	// 4. 准备消费者
+	shardingAppliers := logic.BuildAppliers(wg, logic.BatchReadCount*10, dbHelper, *dryRun, dbConfig)
+
+	// 5. 准备退出
+	go logic.ShardingWaitingClose(*batchMode, &pauseInput, &stopInput, shardingAppliers)
+
+	if *batchMode {
+		// 一尺处理一个Table, 可以并发地处理多个Table
+		logic.BatchReadDB(wg, originTableName, originTable.DbAlias, dbConfig, dbHelper,
+			logic.ShardingAppliers(shardingAppliers),
+			&stopInput, &pauseInput)
+
+		// 批量Apply数据
+		logic.ReorderAndApply(dbHelper, shardingAppliers)
+		log.Printf(color.MagentaString("Data sharding finished"))
+
+	} else {
+
+		// 只处理binlog(一次只处理一台机器)
+		logic.BinlogShard4SingleMachine(wg,
+			originTable, dbConfig,
+			dbHelper, shardingAppliers, &stopInput,
+			*replicaServerId, *binlogInfo)
+
+	}
+
+	// 等外完成
+	wg.Wait()
 }

@@ -31,15 +31,27 @@ type ShardingApplier struct {
 
 	isClosed atomic2.Bool
 
-	InsertIgnoreMode atomic2.Bool
-	builder          models.ModelBuilder
+	batchInsertMode atomic2.Bool
+	builder         models.ModelBuilder
 }
 
-func NewShardingApplier(shardingIndex, cacheSize int, config *conf.DatabaseConfig, dryRun bool, builder models.ModelBuilder) (*ShardingApplier, error) {
+type ShardingAppliers []*ShardingApplier
+
+func (this ShardingAppliers) PushSQL(sql *models.ShardingSQL) {
+	this[sql.ShardingIndex].PushSQL(sql)
+}
+
+func (this ShardingAppliers) SetBatchInsertMode(batchInsert bool) {
+	for _, applier := range this {
+		applier.batchInsertMode.Set(batchInsert)
+	}
+}
+
+func NewShardingApplier(shardingIndex, batchSize int, cacheSize int, config *conf.DatabaseConfig, dryRun bool, builder models.ModelBuilder) (*ShardingApplier, error) {
 	result := &ShardingApplier{
 		shardingIndex: shardingIndex,
-		sqlsBuffered:  make([]*models.ShardingSQL, 0, cacheSize),
-		sqls:          make(chan *models.ShardingSQL, cacheSize*10), // 多保留一些数据，保证各个shard能并发跑起来
+		sqlsBuffered:  make([]*models.ShardingSQL, 0, batchSize),
+		sqls:          make(chan *models.ShardingSQL, cacheSize), // 多保留一些数据，保证各个shard能并发跑起来
 		cacheSize:     cacheSize,
 		maxRetries:    10,
 		dryRun:        dryRun,
@@ -47,7 +59,7 @@ func NewShardingApplier(shardingIndex, cacheSize int, config *conf.DatabaseConfi
 	}
 
 	result.isClosed.Set(false)
-	result.InsertIgnoreMode.Set(false)
+	result.batchInsertMode.Set(false)
 
 	var err error
 	result.db, err = sql.Open("mysql", config.GetDBUri(fmt.Sprintf("shard%d", shardingIndex)))
@@ -123,7 +135,7 @@ func (this *ShardingApplier) Run(wg *sync.WaitGroup) {
 		if len(this.sqlsBuffered) >= this.cacheSize || (len(this.sqlsBuffered) > 0 && timeout) {
 			// 有数据，或timeout
 			batchSQL := func() error {
-				if this.InsertIgnoreMode.Get() {
+				if this.batchInsertMode.Get() {
 					// 如何处理批量插入的问题呢?
 					insertSqls := make([]string, len(this.sqlsBuffered))
 					argsAll := make([]interface{}, 0, len(this.sqlsBuffered)*len(this.sqlsBuffered[0].Args))

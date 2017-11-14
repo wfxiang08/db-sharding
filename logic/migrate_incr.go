@@ -14,12 +14,22 @@ import (
 	"sync"
 )
 
-func BinlogShard(wg *sync.WaitGroup, originTable string, sourceDBAlias string, dbConfig *conf.DatabaseConfig,
+//
+// sourceConfig 代表一台mysql db
+// 上面可能有多个db
+//
+func BinlogShard4SingleMachine(wg *sync.WaitGroup, originTable *OriginTable, dbConfig *conf.DatabaseConfig,
 	dbHelper models.DBHelper,
-	shardingAppliers []*ShardingApplier,
+	shardingAppliers ShardingAppliers,
 	stopInput *atomic2.Bool,
-	startStreamingEvent chan bool,
 	replicaServerId uint, binlogInfo string) {
+
+	// binlog一次只处理一台机器
+	_, hostname, port := dbConfig.GetDB(originTable.DbAlias)
+	sourceConfig := &mysql.ConnectionConfig{
+		Key:  mysql.InstanceKey{Hostname: hostname, Port: port},
+		User: dbConfig.User, Password: dbConfig.Password,
+	}
 
 	binlogFile := ""
 	binlogPos := int64(0)
@@ -35,20 +45,14 @@ func BinlogShard(wg *sync.WaitGroup, originTable string, sourceDBAlias string, d
 	defer wg.Done()
 
 	var eventsStreamer *EventsStreamer
-	sourceDB, hostname, port := dbConfig.GetDB(sourceDBAlias)
 
-	sourceConfig := &mysql.ConnectionConfig{
-		Key:  mysql.InstanceKey{Hostname: hostname, Port: port},
-		User: dbConfig.User, Password: dbConfig.Password,
-	}
-
-	eventsStreamer = NewEventsStreamer(sourceConfig, sourceDB, MaxRetryNum, replicaServerId)
+	eventsStreamer = NewEventsStreamer(sourceConfig, "", MaxRetryNum, replicaServerId)
 
 	if err := eventsStreamer.InitDBConnections(binlogFile, binlogPos); err != nil {
 		log.PanicErrorf(err, "InitDBConnections failed")
 	}
 
-	eventsStreamer.AddListener(false, sourceDB, originTable, func(binlogEntry *binlog.BinlogEntry) error {
+	eventsStreamer.AddListener(false, originTable.DatabasePattern, originTable.TablePattern, func(binlogEntry *binlog.BinlogEntry) error {
 
 		event := binlogEntry.DmlEvent
 
@@ -67,16 +71,11 @@ func BinlogShard(wg *sync.WaitGroup, originTable string, sourceDBAlias string, d
 		if shardingSQL != nil {
 			log.Printf(color.MagentaString("Binlog Entry to shard%02d")+": %s", shardingSQL.ShardingIndex, shardingSQL.String())
 			if dbHelper.ShardFilter(shardingSQL.ShardingIndex) {
-				shardingAppliers[shardingSQL.ShardingIndex].PushSQL(shardingSQL)
+				shardingAppliers.PushSQL(shardingSQL)
 			}
 		}
 		return nil
 	})
-
-	// 等待streaming events
-	if startStreamingEvent != nil {
-		<-startStreamingEvent
-	}
 
 	log.Debugf("Beginning streaming")
 	err := eventsStreamer.StreamEvents(func() bool {
