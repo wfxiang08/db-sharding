@@ -53,11 +53,13 @@ func (this *DbHelperRecordingLike) BatchProcess(db *gorm.DB, tableName string, s
 		return dbInfo, len(batchModels)
 	}
 
-	this.batchProcess(batchModels, sqlApplier)
+	if len(batchModels) > 0 {
+		this.batchProcess(batchModels, sqlApplier)
 
-	// 更新遍历状态
-	lastItem := batchModels[len(batchModels)-1]
-	this.lastId = lastItem.Id
+		// 更新遍历状态
+		lastItem := batchModels[len(batchModels)-1]
+		this.lastId = lastItem.Id
+	}
 
 	return dbInfo, len(batchModels)
 }
