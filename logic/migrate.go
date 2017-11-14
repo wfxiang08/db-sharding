@@ -15,8 +15,6 @@ import (
 )
 
 const (
-	BatchWriteCount       = 2000
-	BatchReadCount        = 2000
 	MaxRetryNum           = 10
 	MaxBinlogDelaySeconds = 5
 )
@@ -24,6 +22,8 @@ const (
 var (
 	TotalShardNum                = 32 // 默认是32, 如果每个DB内的table被拆分，则为32 * replication(被拆分数)
 	BatchInsertSleepMilliseconds = 20
+	BatchReadCount               = 2000
+	BatchWriteCount              = 2000
 )
 
 // 原始的Table(每次只考虑单个的db/table, 或者单台机器上的一类tables)
