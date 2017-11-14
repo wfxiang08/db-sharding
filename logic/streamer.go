@@ -170,7 +170,7 @@ func (this *EventsStreamer) InitDBConnections(binlogFile string, binlogPos int64
 
 	// 获取当前的binlog的位置
 	// 如果没有有效的信息
-	if len(binlogFile) == 0 || len(this.masterInfo.Name) == 0 {
+	if len(binlogFile) == 0 && len(this.masterInfo.Name) == 0 {
 		if err := this.readCurrentBinlogCoordinates(); err != nil {
 			return err
 		}
