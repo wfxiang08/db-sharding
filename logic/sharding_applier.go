@@ -126,7 +126,7 @@ func (this *ShardingApplier) Run(wg *sync.WaitGroup) {
 
 		// 暂停，直到状态改变
 		for this.pauseInput.Get() {
-			log.Printf(color.BlueString("Throttle Pause") + ", sleep 1 second")
+			log.Printf(color.BlueString("Throttle Pause")+", sleep 1 second for shard: %d", this.shardingIndex)
 			time.Sleep(time.Second)
 		}
 

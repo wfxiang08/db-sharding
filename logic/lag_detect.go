@@ -3,6 +3,7 @@ package logic
 import (
 	db_sql "database/sql"
 	"fmt"
+	"github.com/fatih/color"
 	"github.com/outbrain/golib/sqlutils"
 	"github.com/wfxiang08/cyutils/utils/atomic2"
 	log "github.com/wfxiang08/cyutils/utils/rolling_log"
@@ -133,7 +134,7 @@ func (this *ThrottlerNode) collectControlReplicasLag() {
 
 			paused := this.Lag > MaxLagInMillseconds
 			if this.pauseInput.Get() != paused {
-				log.Printf("%s paused: %v", this.master.Key.Hostname, paused)
+				log.Printf(color.BlueString("%s paused: %v"), this.master.Key.Hostname, paused)
 				this.pauseInput.Set(paused)
 			}
 		}
