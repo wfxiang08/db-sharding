@@ -1,5 +1,10 @@
 user = "root"
 password = ""
+
+slave_master_mapping = [
+    ["localhost", "localhost"],
+]
+
 dbs = [
     "local:node1@localhost",
     ]

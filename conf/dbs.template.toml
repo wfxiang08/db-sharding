@@ -2,7 +2,7 @@ user = "username"
 password = "passwd"
 
 slave_master_mapping = [
-    ["shard_0-r1@shardxx.test.com", "shard_0@shardxx.test.com"],
+    ["shardxx.test.com", "shardxx.test.com"],
 ]
 
 dbs = [

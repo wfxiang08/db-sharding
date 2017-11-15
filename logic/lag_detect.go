@@ -21,8 +21,8 @@ const (
 type ThrottlerNode struct {
 	master *mysql.ConnectionConfig
 	slave  *mysql.ConnectionConfig
-	dbName string
-	lag    time.Duration
+	DbName string
+	Lag    time.Duration
 
 	masterDB *db_sql.DB
 	slaveDB  *db_sql.DB
@@ -30,13 +30,15 @@ type ThrottlerNode struct {
 	pauseInput *atomic2.Bool
 }
 
-func StartThrottleCheck(dbConfig *conf.DatabaseConfig, masterAlias string, host2PauseInput map[string]*atomic2.Bool) {
+func StartThrottleCheck(dbConfig *conf.DatabaseConfig, masterAlias string, host2PauseInput map[string]*atomic2.Bool) []*ThrottlerNode {
 	masterAliases := strings.Split(masterAlias, ";")
 	// 获取master的配置和salve的配置
+	var results []*ThrottlerNode
 	for _, masterAlias := range masterAliases {
 		dbName, hostname, _ := dbConfig.GetDB(masterAlias)
 		pauseInput, ok := host2PauseInput[hostname]
 		if !ok {
+			log.Printf("Hostname skipped: %s", hostname)
 			continue
 		}
 
@@ -46,21 +48,26 @@ func StartThrottleCheck(dbConfig *conf.DatabaseConfig, masterAlias string, host2
 		slave.Key.Hostname = dbConfig.Master2Slave[master.Key.Hostname]
 
 		result := &ThrottlerNode{
-			lag:        0,
+			Lag:        0,
 			master:     master,
 			slave:      slave,
-			dbName:     dbName,
+			DbName:     dbName,
 			pauseInput: pauseInput,
 		}
 		result.init()
+		// 更新db
 		go result.updateHeartBeat()
+		// 检查slave的变化
 		go result.collectControlReplicasLag()
+
+		results = append(results, result)
 	}
+	return results
 }
 
 func (this *ThrottlerNode) init() {
 	// 获取master db
-	dbUri := this.master.GetDBUri(this.dbName)
+	dbUri := this.master.GetDBUri(this.DbName)
 	db, _, err := sqlutils.GetDB(dbUri)
 	if err != nil {
 		log.PanicErrorf(err, "Get Master Db failed")
@@ -68,11 +75,11 @@ func (this *ThrottlerNode) init() {
 	this.masterDB = db
 
 	// 确保LagTableName存在
-	query := fmt.Sprintf(`Create Table IF NOT EXISTS %s.%s (
+	query := fmt.Sprintf(`CREATE Table IF NOT EXISTS %s.%s (
 			id int,
-            value bigint
-			primary key(id),
-		)`, sql.EscapeName(this.dbName), sql.EscapeName(LagTableName),
+            value bigint,
+			primary key(id)
+		)`, sql.EscapeName(this.DbName), sql.EscapeName(LagTableName),
 	)
 
 	_, err = this.masterDB.Exec(query)
@@ -82,7 +89,7 @@ func (this *ThrottlerNode) init() {
 	}
 
 	// 获取slave db
-	dbUri = this.slave.GetDBUri(this.dbName)
+	dbUri = this.slave.GetDBUri(this.DbName)
 	db, _, err = sqlutils.GetDB(dbUri)
 	if err != nil {
 		log.PanicErrorf(err, "Get Master Db failed")
@@ -94,7 +101,8 @@ func (this *ThrottlerNode) updateHeartBeat() {
 
 	ticker := time.NewTicker(time.Millisecond * 500)
 	for _ = range ticker.C {
-		query := fmt.Sprintf(`replace into %s.%s (id, value) values (1, %d)`, sql.EscapeName(this.dbName), sql.EscapeName(LagTableName), time.Now().UnixNano())
+		//log.Printf("updateHeartBeat")
+		query := fmt.Sprintf(`replace into %s.%s (id, value) values (1, %d)`, sql.EscapeName(this.DbName), sql.EscapeName(LagTableName), time.Now().UnixNano())
 		_, err := this.masterDB.Exec(query)
 		if err != nil {
 			log.ErrorErrorf(err, "Update Master Db failed")
@@ -105,20 +113,29 @@ func (this *ThrottlerNode) updateHeartBeat() {
 func (this *ThrottlerNode) collectControlReplicasLag() {
 	ticker := time.NewTicker(time.Millisecond * 500)
 	replicationLagQuery := fmt.Sprintf(`select value from %s.%s where id = 1`,
-		sql.EscapeName(this.dbName),
+		sql.EscapeName(this.DbName),
 		sql.EscapeName(LagTableName),
 	)
+	time.Sleep(time.Second) // 保证table创建，数据ok
+
 	var heartbeatValue int64
 	for _ = range ticker.C {
+		//log.Printf("collectControlReplicasLag")
+
 		if err := this.slaveDB.QueryRow(replicationLagQuery).Scan(&heartbeatValue); err != nil {
+			// 第一次可能没有数据
 			log.ErrorErrorf(err, "replicationLagQuery failed")
 			continue
 		}
 		t := time.Now().UnixNano() - heartbeatValue
 		if t > 0 {
-			this.lag = time.Duration(t)
+			this.Lag = time.Duration(t)
 
-			this.pauseInput.Set(this.lag > MaxLagInMillseconds)
+			paused := this.Lag > MaxLagInMillseconds
+			if this.pauseInput.Get() != paused {
+				log.Printf("%s paused: %v", this.master.Key.Hostname, paused)
+				this.pauseInput.Set(paused)
+			}
 		}
 	}
 }
