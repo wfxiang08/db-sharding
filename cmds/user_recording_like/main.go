@@ -82,7 +82,7 @@ func main() {
 	dbHelper := NewDbHelperRecordingLike(cacheSizeInt, true)
 
 	// 4. 准备消费者
-	shardingAppliers, host2InputPause := logic.BuildAppliers(wg, logic.BatchReadCount*10, dbHelper, *dryRun, dbConfig, &pauseInput)
+	shardingAppliers, host2InputPause := logic.BuildAppliers(wg, logic.BatchReadCount*10, dbHelper, *dryRun, dbConfig)
 
 	// 控制Throttle
 	if len(*throttle) > 0 {

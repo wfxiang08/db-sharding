@@ -90,7 +90,7 @@ func ShardingWaitingClose(batchOnly bool, pauseInput *atomic2.Bool, stopInput *a
 }
 
 func BuildAppliers(wg *sync.WaitGroup, cacheSize int, dbHelper models.DBHelper, dryRun bool,
-	dbConfig *conf.DatabaseConfig, pauseInput *atomic2.Bool) (ShardingAppliers, map[string]*atomic2.Bool) {
+	dbConfig *conf.DatabaseConfig) (ShardingAppliers, map[string]*atomic2.Bool) {
 	return BuildBatchAppliersWithRepliction(wg, 1, cacheSize, dbHelper, dryRun, dbConfig)
 }
 
