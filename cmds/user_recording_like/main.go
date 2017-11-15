@@ -43,6 +43,8 @@ var (
 	cacheSize = flag.Int64("batch-cache", 20000000, "batch process init cache size")
 
 	metaDir = flag.String("meta-dir", "", "binlog meta dir")
+
+	throttle = flag.String("throttle-alias", "", "throttle alias")
 )
 
 //
@@ -80,7 +82,12 @@ func main() {
 	dbHelper := NewDbHelperRecordingLike(cacheSizeInt, true)
 
 	// 4. 准备消费者
-	shardingAppliers := logic.BuildAppliers(wg, logic.BatchReadCount*10, dbHelper, *dryRun, dbConfig)
+	shardingAppliers, host2InputPause := logic.BuildAppliers(wg, logic.BatchReadCount*10, dbHelper, *dryRun, dbConfig, &pauseInput)
+
+	// 控制Throttle
+	if len(*throttle) > 0 {
+		logic.StartThrottleCheck(dbConfig, *throttle, host2InputPause)
+	}
 
 	// 5. 准备退出
 	go logic.ShardingWaitingClose(*batchMode, &pauseInput, &stopInput, shardingAppliers)

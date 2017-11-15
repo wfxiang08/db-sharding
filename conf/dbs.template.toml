@@ -1,5 +1,10 @@
 user = "username"
 password = "passwd"
+
+slave_master_mapping = [
+    ["shard_0-r1@shardxx.test.com", "shard_0@shardxx.test.com"],
+]
+
 dbs = [
     "final:final@final.test.com",
     "shard0:shard_0@shardxx.test.com",

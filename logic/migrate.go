@@ -1,6 +1,7 @@
 package logic
 
 import (
+	"fmt"
 	"github.com/fatih/color"
 	_ "github.com/jinzhu/gorm/dialects/mysql"
 	"github.com/wfxiang08/cyutils/utils/atomic2"
@@ -88,33 +89,31 @@ func ShardingWaitingClose(batchOnly bool, pauseInput *atomic2.Bool, stopInput *a
 	}
 }
 
-func BuildAppliers(wg *sync.WaitGroup, cacheSize int, dbHelper models.DBHelper, dryRun bool, dbConfig *conf.DatabaseConfig) ShardingAppliers {
-	var err error
-	// 1. 准备消费者
-	shardingAppliers := make([]*ShardingApplier, TotalShardNum)
-	for i := 0; i < TotalShardNum; i++ {
-		shardingAppliers[i], err = NewShardingApplier(i, BatchWriteCount, cacheSize, dbConfig, dryRun, dbHelper.GetBuilder())
-		if err != nil {
-			log.PanicErrorf(err, "NewShardingApplier failed")
-		}
-
-		wg.Add(1)
-		// 启动消费者进程
-		go shardingAppliers[i].Run(wg)
-	}
-	return ShardingAppliers(shardingAppliers)
+func BuildAppliers(wg *sync.WaitGroup, cacheSize int, dbHelper models.DBHelper, dryRun bool,
+	dbConfig *conf.DatabaseConfig, pauseInput *atomic2.Bool) (ShardingAppliers, map[string]*atomic2.Bool) {
+	return BuildBatchAppliersWithRepliction(wg, 1, cacheSize, dbHelper, dryRun, dbConfig)
 }
 
 func BuildBatchAppliersWithRepliction(wg *sync.WaitGroup, replication int, cacheSize int, dbHelper models.DBHelper,
-	dryRun bool, dbConfig *conf.DatabaseConfig) ShardingAppliers {
+	dryRun bool, dbConfig *conf.DatabaseConfig) (ShardingAppliers, map[string]*atomic2.Bool) {
 
+	hostname2Pause := make(map[string]*atomic2.Bool)
 	var err error
 	// 1. 准备消费者
 	shardingAppliers := make([]*ShardingApplier, TotalShardNum)
 	for i := 0; i < TotalShardNum; i++ {
 
 		dbIndex := i / replication
-		shardingAppliers[i], err = NewShardingApplier(dbIndex, BatchWriteCount, cacheSize, dbConfig, dryRun, dbHelper.GetBuilder())
+
+		_, hostname, _ := dbConfig.GetDB(fmt.Sprintf("shard%d", dbIndex))
+		pauseInput, ok := hostname2Pause[hostname]
+		if !ok {
+			pauseInput = &atomic2.Bool{}
+			hostname2Pause[hostname] = pauseInput
+		}
+
+		shardingAppliers[i], err = NewShardingApplier(dbIndex, BatchWriteCount, cacheSize, dbConfig, dryRun,
+			dbHelper.GetBuilder(), pauseInput)
 		if err != nil {
 			log.PanicErrorf(err, "NewShardingApplier failed")
 		}
@@ -123,5 +122,5 @@ func BuildBatchAppliersWithRepliction(wg *sync.WaitGroup, replication int, cache
 		// 启动消费者进程
 		go shardingAppliers[i].Run(wg)
 	}
-	return ShardingAppliers(shardingAppliers)
+	return ShardingAppliers(shardingAppliers), hostname2Pause
 }

@@ -33,6 +33,7 @@ type ShardingApplier struct {
 
 	batchInsertMode atomic2.Bool
 	builder         models.ModelBuilder
+	pauseInput      *atomic2.Bool
 }
 
 type ShardingAppliers []*ShardingApplier
@@ -49,7 +50,8 @@ func (this ShardingAppliers) SetBatchInsertMode(batchInsert bool) {
 	}
 }
 
-func NewShardingApplier(shardingIndex, batchSize int, cacheSize int, config *conf.DatabaseConfig, dryRun bool, builder models.ModelBuilder) (*ShardingApplier, error) {
+func NewShardingApplier(shardingIndex, batchSize int, cacheSize int, config *conf.DatabaseConfig, dryRun bool,
+	builder models.ModelBuilder, pauseInput *atomic2.Bool) (*ShardingApplier, error) {
 	result := &ShardingApplier{
 		shardingIndex:   shardingIndex,
 		sqlsBuffered:    make([]*models.ShardingSQL, 0, batchSize),
@@ -58,6 +60,7 @@ func NewShardingApplier(shardingIndex, batchSize int, cacheSize int, config *con
 		maxRetries:      10,
 		dryRun:          dryRun,
 		builder:         builder,
+		pauseInput:      pauseInput,
 	}
 
 	result.isClosed.Set(false)
@@ -120,6 +123,12 @@ func (this *ShardingApplier) Run(wg *sync.WaitGroup) {
 	defer wg.Done()
 
 	for true {
+
+		// 暂停，直到状态改变
+		for this.pauseInput.Get() {
+			log.Printf(color.BlueString("Throttle Pause") + ", sleep 1 second")
+			time.Sleep(time.Second)
+		}
 
 		timeout := false
 		channelClosed := false

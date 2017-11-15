@@ -4,6 +4,7 @@ import (
 	"github.com/fatih/color"
 	"github.com/jinzhu/gorm"
 	_ "github.com/jinzhu/gorm/dialects/mysql"
+	"github.com/outbrain/golib/math"
 	"github.com/wfxiang08/cyutils/utils"
 	"github.com/wfxiang08/cyutils/utils/atomic2"
 	log "github.com/wfxiang08/cyutils/utils/rolling_log"
@@ -87,16 +88,18 @@ func BatchReadDB(wg *sync.WaitGroup, tableName string, sourceDBAlias string, dbC
 	log.Printf("Block Read events finished")
 
 }
-
 func ReorderAndApply(dbHelper models.DBHelper, shardingAppliers ShardingAppliers) {
+	ReorderAndApplyWithStep(dbHelper, shardingAppliers, TotalShardNum)
+}
+func ReorderAndApplyWithStep(dbHelper models.DBHelper, shardingAppliers ShardingAppliers, step int) {
 	dbHelper.PrintSummary()
 
 	if dbHelper.NeedReOrder() {
 		// 数据读取完毕(按照升序排列)
 		var shardingTransferWg sync.WaitGroup
-		for i := 0; i < TotalShardNum; i++ {
-			shardingTransferWg.Add(1)
-			go func(shardIndex int) {
+		for i := 0; i < TotalShardNum; i += step {
+
+			shardProcessor := func(shardIndex int) {
 				defer shardingTransferWg.Done()
 
 				// 排序:
@@ -124,9 +127,15 @@ func ReorderAndApply(dbHelper models.DBHelper, shardingAppliers ShardingAppliers
 				shardingAppliers[shardIndex].Close()
 
 				log.Printf(color.CyanString("Sharding %d")+" finished insert ignore", shardIndex)
+			}
 
-			}(i)
+			// 一次处理一批，不要全部一起上
+			for j := i; j < math.MinInt(TotalShardNum, i+step); j++ {
+				shardingTransferWg.Add(1)
+				go shardProcessor(j)
+			}
+			shardingTransferWg.Wait()
 		}
-		shardingTransferWg.Wait()
+
 	}
 }
